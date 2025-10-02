@@ -3,30 +3,8 @@ import { Stack } from 'expo-router';
 import { AuthProvider, useAuth } from '~/hooks/useAuth';
 import { BasespeakProvider } from '~/hooks/useBasespeakStore';
 
-function AuthedStack() {
-  return (
-    <BasespeakProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="(modals)/upload-base"
-          options={{ presentation: 'modal', title: 'Create Character', headerShown: true }}
-        />
-      </Stack>
-    </BasespeakProvider>
-  );
-}
-
-function AuthStack() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
-    </Stack>
-  );
-}
-
-function NavigationGate() {
-  const { initializing, session } = useAuth();
+function RootNavigator() {
+  const { initializing } = useAuth();
 
   if (initializing) {
     return (
@@ -36,13 +14,25 @@ function NavigationGate() {
     );
   }
 
-  return session ? <AuthedStack /> : <AuthStack />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="(modals)/upload-base"
+        options={{ presentation: 'modal', title: 'Create Character', headerShown: true }}
+      />
+    </Stack>
+  );
 }
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <NavigationGate />
+      <BasespeakProvider>
+        <RootNavigator />
+      </BasespeakProvider>
     </AuthProvider>
   );
 }
