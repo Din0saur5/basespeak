@@ -64,6 +64,10 @@ export default function ChatScreen() {
         }
         try {
           const result = await pollJob(jobId, userId ?? undefined);
+          console.log('[Gooey] poll result', jobId, result.status, {
+            mp4Url: result.mp4Url,
+            messageId: result.messageId,
+          });
           if (cancelled) {
             return;
           }
@@ -75,6 +79,7 @@ export default function ChatScreen() {
             });
             jobTrackers.current.delete(jobId);
             cancel();
+            console.log('[Gooey] job complete', jobId, 'url:', result.mp4Url);
             return;
           }
 
@@ -84,6 +89,7 @@ export default function ChatScreen() {
             });
             jobTrackers.current.delete(jobId);
             cancel();
+            console.warn('[Gooey] job error', jobId, result.error);
             return;
           }
         } catch (error) {
@@ -94,6 +100,7 @@ export default function ChatScreen() {
             });
             jobTrackers.current.delete(jobId);
             cancel();
+            console.warn('[Gooey] job failed after retries', jobId);
             return;
           }
         }
@@ -112,6 +119,18 @@ export default function ChatScreen() {
       navigation.setOptions({ title: avatar.name });
     }
   }, [avatar, navigation]);
+
+  useEffect(() => {
+    if (!avatarId) {
+      return;
+    }
+    console.log('[Chat] avatar snapshot', {
+      avatarId,
+      baseKind: avatar?.baseKind,
+      baseUrl: avatar?.baseUrl,
+      posterUrl: avatar?.posterUrl,
+    });
+  }, [avatarId, avatar?.baseKind, avatar?.baseUrl, avatar?.posterUrl]);
 
   useEffect(() => {
     if (!avatarId || !hydrated || !user?.id) {
@@ -175,7 +194,20 @@ export default function ChatScreen() {
     return withVideo?.videoUrl ?? null;
   }, [messages]);
 
-  const basePreview = avatar?.baseKind === 'image' ? avatar.baseUrl : avatar?.posterUrl ?? avatar?.baseUrl;
+  useEffect(() => {
+    console.log('[Chat] latest video updated', latestVideo);
+  }, [latestVideo]);
+
+  const fallbackVideo = avatar?.baseKind === 'video' ? avatar?.baseUrl ?? null : null;
+  const fallbackPoster = avatar?.baseKind === 'image' ? avatar?.baseUrl : avatar?.posterUrl ?? null;
+
+  useEffect(() => {
+    console.log('[Chat] fallback assets', { fallbackVideo, fallbackPoster });
+  }, [fallbackPoster, fallbackVideo]);
+
+  const isFallbackVideo = Boolean(fallbackVideo) && !latestVideo;
+  const videoToDisplay = latestVideo ?? fallbackVideo;
+  const posterToDisplay = latestVideo ? undefined : fallbackPoster;
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -251,8 +283,12 @@ export default function ChatScreen() {
       >
         <View style={styles.videoContainer}>
           <VideoPane
-            videoUrl={latestVideo}
-            posterUrl={latestVideo ? undefined : basePreview}
+            videoUrl={videoToDisplay}
+            posterUrl={posterToDisplay}
+            autoPlay={isFallbackVideo}
+            loop={isFallbackVideo}
+            muted={isFallbackVideo}
+            showControls={!isFallbackVideo}
             fallbackLabel="Waiting for first lipsync video"
           />
         </View>

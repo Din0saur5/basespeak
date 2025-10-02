@@ -5,17 +5,31 @@ interface VideoPaneProps {
   videoUrl?: string | null;
   posterUrl?: string | null;
   fallbackLabel?: string;
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  showControls?: boolean;
 }
 
-export function VideoPane({ videoUrl, posterUrl, fallbackLabel = 'No video yet' }: VideoPaneProps) {
+export function VideoPane({
+  videoUrl,
+  posterUrl,
+  fallbackLabel = 'No video yet',
+  autoPlay = false,
+  loop = false,
+  muted = false,
+  showControls = true,
+}: VideoPaneProps) {
   if (videoUrl) {
     return (
       <Video
         style={styles.video}
         source={{ uri: videoUrl }}
-        useNativeControls
-        resizeMode={ResizeMode.CONTAIN}
-        shouldPlay={false}
+        useNativeControls={showControls}
+        resizeMode={showControls ? ResizeMode.CONTAIN : ResizeMode.COVER}
+        shouldPlay={autoPlay}
+        isLooping={loop}
+        isMuted={muted}
       />
     );
   }
@@ -34,7 +48,7 @@ export function VideoPane({ videoUrl, posterUrl, fallbackLabel = 'No video yet' 
 const styles = StyleSheet.create({
   video: {
     width: '100%',
-    aspectRatio: 16 / 9,
+    aspectRatio: 3 / 4,
     borderRadius: 12,
     backgroundColor: '#0f172a',
     overflow: 'hidden',

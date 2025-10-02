@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { VideoPane } from '~/components/VideoPane';
 import { Avatar } from '~/types';
 
 interface AvatarCardProps {
@@ -8,13 +9,22 @@ interface AvatarCardProps {
 }
 
 function AvatarCardComponent({ avatar, onPress }: AvatarCardProps) {
-  const previewSource =
-    avatar.baseKind === 'video' && avatar.posterUrl ? { uri: avatar.posterUrl } : { uri: avatar.baseUrl };
-
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.previewWrapper}>
-        <Image source={previewSource} style={styles.preview} resizeMode="cover" />
+        {avatar.baseKind === 'video' ? (
+          <VideoPane
+            videoUrl={avatar.baseUrl}
+            posterUrl={avatar.posterUrl ?? undefined}
+            autoPlay
+            loop
+            muted
+            showControls={false}
+            fallbackLabel="No preview"
+          />
+        ) : (
+          <Image source={{ uri: avatar.baseUrl }} style={styles.preview} resizeMode="cover" />
+        )}
       </View>
       <Text style={styles.name} numberOfLines={1}>
         {avatar.name}
