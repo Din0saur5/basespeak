@@ -20,6 +20,39 @@ export async function insertAvatar(row: Partial<AvatarRow>): Promise<AvatarRow> 
   return data as AvatarRow;
 }
 
+export async function updateAvatar(
+  userId: string,
+  avatarId: string,
+  patch: Partial<AvatarRow>,
+): Promise<AvatarRow> {
+  const filteredPatch = Object.fromEntries(
+    Object.entries(patch).filter(([, value]) => value !== undefined),
+  );
+
+  if (!Object.keys(filteredPatch).length) {
+    const current = await getAvatar(userId, avatarId);
+    if (!current) {
+      throw new Error('Avatar not found');
+    }
+    return current;
+  }
+
+  const { data, error } = await supabase
+    .from('avatars')
+    .update(filteredPatch)
+    .eq('user_id', userId)
+    .eq('id', avatarId)
+    .select()
+    .single();
+
+  if (error) {
+    logError('Failed to update avatar', error);
+    throw error;
+  }
+
+  return data as AvatarRow;
+}
+
 export function mapAvatarRow(row: AvatarRow) {
   return {
     id: row.id,

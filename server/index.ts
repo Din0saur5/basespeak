@@ -5,7 +5,7 @@ import { ENV } from './env';
 import { uploadBaseHandler } from './routes/uploadBase';
 import { replyHandler } from './routes/reply';
 import { vendorStatusHandler } from './routes/status';
-import { avatarMessagesHandler, avatarsHandler } from './routes/avatars';
+import { avatarMessagesHandler, avatarsHandler, updateAvatarHandler } from './routes/avatars';
 import { logError, logInfo } from './utils/logger';
 
 const app = express();
@@ -35,6 +35,7 @@ app.get('/health', (_req, res) => {
 app.get('/status', vendorStatusHandler);
 app.get('/avatars', avatarsHandler);
 app.get('/avatars/:avatarId/messages', avatarMessagesHandler);
+app.patch('/avatars/:avatarId', upload.any(), updateAvatarHandler);
 app.post('/upload-base', upload.any(), uploadBaseHandler);
 app.post('/reply', replyHandler);
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

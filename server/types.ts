@@ -56,3 +56,10 @@ export interface UploadBasePayload {
   persona?: string;
   lipsyncQuality?: LipsyncQuality;
 }
+
+export interface UpdateAvatarPayload {
+  name?: string;
+  voicePreset?: string;
+  persona?: string | null;
+  lipsyncQuality?: LipsyncQuality;
+}
