@@ -6,8 +6,7 @@ type BaseKind = 'image' | 'video';
 interface GooeySubmitOptions {
   baseUrl: string;
   baseKind: BaseKind;
-  audioBase64: string;
-  audioMime: string;
+  audioUrl: string;
   quality: 'fast' | 'hd';
 }
 
@@ -29,18 +28,22 @@ export async function submitGooeyJob(options: GooeySubmitOptions): Promise<Gooey
 
   try {
     const payload: Record<string, unknown> = {
-      audio_base64: options.audioBase64,
-      audio_mime_type: options.audioMime,
-      quality: options.quality,
+      input_face: options.baseUrl,
+      input_audio: options.audioUrl,
+      selected_model: 'Wav2Lip',
+      face_padding_top: 0,
+      face_padding_bottom: 18,
+      face_padding_left: 0,
+      face_padding_right: 0,
     };
 
     if (options.baseKind === 'image') {
-      payload.face_image_url = options.baseUrl;
-    } else {
-      payload.input_video_url = options.baseUrl;
+      payload.face_padding_bottom = 0;
     }
 
-    const response = await fetch(`${ENV.GOOEY_API_URL.replace(/\/$/, '')}/lipsync`, {
+    console.log('[Gooey] submit request', payload);
+
+    const response = await fetch(`${ENV.GOOEY_API_URL.replace(/\/$/, '')}/Lipsync/async/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -54,13 +57,27 @@ export async function submitGooeyJob(options: GooeySubmitOptions): Promise<Gooey
       throw new Error(`Gooey responded with ${response.status}: ${content}`);
     }
 
-    const data = await response.json();
-    const jobId = data?.job_id ?? data?.id ?? null;
-    const mp4Url = data?.mp4_url ?? data?.mp4Url ?? null;
+    console.log('[Gooey] submit status', response.status);
+    const location = response.headers.get('Location');
+    if (!location) {
+      throw new Error('Gooey response missing Location header');
+    }
+
+    let jobId = location;
+    console.log('[Gooey] submit location', location);
+    try {
+      const url = new URL(location);
+      const runId = url.searchParams.get('run_id');
+      if (runId) {
+        jobId = runId;
+      }
+    } catch (parseError) {
+      logError('Failed to parse Gooey Location header', parseError);
+    }
 
     return {
       jobId,
-      mp4Url,
+      mp4Url: null,
     };
   } catch (error) {
     logError('Gooey lipsync submission failed', error);
@@ -74,7 +91,10 @@ export async function fetchGooeyJob(jobId: string): Promise<GooeyJobStatus> {
   }
 
   try {
-    const response = await fetch(`${ENV.GOOEY_API_URL.replace(/\/$/, '')}/jobs/${jobId}`, {
+    const base = ENV.GOOEY_API_URL.replace(/\/$/, '');
+    const url = jobId.startsWith('http') ? jobId : `${base}/Lipsync/status/?run_id=${encodeURIComponent(jobId)}`;
+    console.log('[Gooey] polling url', url);
+    const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${ENV.GOOEY_KEY}`,
       },
@@ -86,22 +106,30 @@ export async function fetchGooeyJob(jobId: string): Promise<GooeyJobStatus> {
     }
 
     const data = await response.json();
-    const rawStatus = String(data?.status ?? data?.state ?? 'queued').toLowerCase();
+    console.log('[Gooey] polling status response', data);
+    const rawStatus = String(data?.status ?? 'pending').toLowerCase();
     const statusMap: Record<string, GooeyJobStatus['status']> = {
-      queued: 'queued',
       pending: 'queued',
+      queued: 'queued',
       processing: 'running',
       running: 'running',
-      done: 'done',
+      working: 'running',
       completed: 'done',
+      done: 'done',
       success: 'done',
-      error: 'error',
       failed: 'error',
+      error: 'error',
     };
     const status = statusMap[rawStatus] ?? 'queued';
+    const outputUrl =
+      data?.output_video ??
+      data?.result_url ??
+      data?.output?.output_video ??
+      data?.files?.output_video ??
+      null;
     return {
       status,
-      mp4Url: data?.mp4_url ?? data?.result_url ?? null,
+      mp4Url: outputUrl,
       error: data?.error ?? data?.message,
     };
   } catch (error) {

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PersistedStore } from '~/types';
 
 const STORE_KEY = 'basespeak::store.v1';
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 export const defaultStore: PersistedStore = {
   version: CURRENT_VERSION,

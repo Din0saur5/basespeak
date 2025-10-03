@@ -34,15 +34,8 @@ export interface ReplyResponse {
   replyText: string;
   audioB64: string;
   mime: string;
-  jobId?: string | null;
   messageId: string;
-}
-
-export interface JobStatusResponse {
-  status: 'queued' | 'running' | 'done' | 'error';
-  mp4Url?: string | null;
-  messageId?: string;
-  error?: string;
+  videoUrls: string[];
 }
 
 async function request<T>(path: string, init: RequestInit = {}, options: RequestOptions = {}): Promise<T> {
@@ -128,6 +121,7 @@ export async function sendReply(payload: ReplyPayload, userId: string): Promise<
   if (!userId) {
     throw new Error('User not authenticated');
   }
+  console.log('[API] sendReply ->', { avatarId: payload.avatarId, textLength: payload.userText.length, userId });
   return request<ReplyResponse>(
     '/reply',
     {
@@ -138,11 +132,10 @@ export async function sendReply(payload: ReplyPayload, userId: string): Promise<
       body: JSON.stringify(payload),
     },
     { userId },
-  );
-}
-
-export async function pollJob(jobId: string, userId?: string): Promise<JobStatusResponse> {
-  return request<JobStatusResponse>(`/job/${jobId}`, undefined, { userId });
+  ).then((result) => {
+    console.log('[API] sendReply <-', { videoCount: result.videoUrls?.length ?? 0 });
+    return result;
+  });
 }
 
 export async function fetchVendorStatus(): Promise<VendorStatus> {

@@ -34,6 +34,7 @@ export interface MessageRow {
   job_id?: string | null;
   video_path?: string | null;
   video_url?: string | null;
+  video_urls?: string[] | null;
   duration_ms?: number | null;
   created_at: string;
   updated_at?: string;

@@ -12,7 +12,7 @@ export const ENV = {
   NOVITA_SPEECH_URL: process.env.NOVITA_SPEECH_URL ?? 'https://api.novita.ai/v3/minimax-speech-2.5-turbo-preview',
   NOVITA_SPEECH_DEFAULT_VOICE: process.env.NOVITA_SPEECH_DEFAULT_VOICE ?? 'Wise_Woman',
   GOOEY_KEY: process.env.GOOEY_KEY ?? '',
-  GOOEY_API_URL: process.env.GOOEY_API_URL ?? 'https://api.gooey.ai/v1',
+  GOOEY_API_URL: process.env.GOOEY_API_URL ?? 'https://api.gooey.ai/v3',
   CLEAN_MODE_DEFAULT: process.env.CLEAN_MODE_DEFAULT === 'false' ? false : true,
 };
 

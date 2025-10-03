@@ -41,7 +41,8 @@ export async function generateNovitaReply({
   try {
     const trimmedPersona = persona?.trim();
     const systemPrompt = trimmedPersona
-      ? `${trimmedPersona}\nKeep replies conversational and under two short sentences.`
+      ? ` your personality is described as: ${trimmedPersona}\nKeep replies conversational and under two short sentences. You are NOT an AI language model you are the persona above and all your responses should reflect that.
+      you are encouraged to make things up about your character like what you did that day or what you're thinking about to keep the convesation going.`
       : 'You are a friendly avatar. Keep replies conversational and under two short sentences.';
 
     const client = getOpenAIClient();

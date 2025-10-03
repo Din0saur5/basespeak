@@ -4,7 +4,6 @@ import multer from 'multer';
 import { ENV } from './env';
 import { uploadBaseHandler } from './routes/uploadBase';
 import { replyHandler } from './routes/reply';
-import { jobStatusHandler } from './routes/job';
 import { vendorStatusHandler } from './routes/status';
 import { avatarMessagesHandler, avatarsHandler } from './routes/avatars';
 import { logError, logInfo } from './utils/logger';
@@ -38,8 +37,6 @@ app.get('/avatars', avatarsHandler);
 app.get('/avatars/:avatarId/messages', avatarMessagesHandler);
 app.post('/upload-base', upload.any(), uploadBaseHandler);
 app.post('/reply', replyHandler);
-app.get('/job/:id', jobStatusHandler);
-
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   logError('Unhandled error', err);
   res.status(500).json({ error: 'Unexpected server error' });

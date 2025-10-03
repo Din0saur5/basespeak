@@ -26,6 +26,7 @@ function parsePayload(body: Request['body']): UploadBasePayload {
 
 export async function uploadBaseHandler(req: Request, res: Response) {
   try {
+    console.log('[Upload] received request');
     const userId = req.userId;
     if (!userId) {
       return res.status(401).json({ error: 'Missing user context' });
@@ -56,6 +57,7 @@ export async function uploadBaseHandler(req: Request, res: Response) {
     const path = `${userId}/${randomUUID()}.${extension}`;
 
     const uploadResult = await uploadBaseAsset(path, file.buffer, mimeType);
+    console.log('[Upload] stored base', uploadResult.path);
 
     let idleUpload: { path: string; publicUrl: string | null } | undefined;
     let talkingUpload: { path: string; publicUrl: string | null } | undefined;
@@ -72,6 +74,7 @@ export async function uploadBaseHandler(req: Request, res: Response) {
       const talkingExt = getExtensionFromMime(talkingMime);
       const talkingPath = `${userId}/${randomUUID()}-talking.${talkingExt}`;
       talkingUpload = await uploadBaseAsset(talkingPath, talkingSource.buffer, talkingMime);
+      console.log('[Upload] stored idle/talking', { idle: idleUpload?.path, talking: talkingUpload?.path });
     }
 
     const avatarRow = await insertAvatar({
@@ -90,6 +93,8 @@ export async function uploadBaseHandler(req: Request, res: Response) {
       lipsync_quality: payload.lipsyncQuality ?? 'fast',
       persona: payload.persona ?? null,
     });
+
+    console.log('[Upload] avatar created', avatarRow.id);
 
     const avatar = mapAvatarRow(avatarRow);
     avatar.baseUrl = uploadResult.publicUrl ?? avatar.baseUrl;

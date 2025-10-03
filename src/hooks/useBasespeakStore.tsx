@@ -27,13 +27,28 @@ function cloneDefaultStore(): PersistedStore {
   };
 }
 
+function normaliseMessage(message: Message): Message {
+  const videoUrls = message.videoUrls ?? (message.videoUrl ? [message.videoUrl] : []);
+  return {
+    ...message,
+    videoUrls,
+    videoUrl: videoUrls[0] ?? message.videoUrl ?? null,
+  };
+}
+
 export function BasespeakProvider({ children }: { children: React.ReactNode }) {
   const [store, setStore] = useState<PersistedStore>(cloneDefaultStore());
   const [hydrated, setHydrated] = useState<boolean>(false);
 
   useEffect(() => {
     loadStore().then((loaded) => {
-      setStore(loaded);
+      const normalisedMessages = Object.fromEntries(
+        Object.entries(loaded.messages ?? {}).map(([key, value]) => [key, value.map(normaliseMessage)]),
+      );
+      setStore({
+        ...loaded,
+        messages: normalisedMessages,
+      });
       setHydrated(true);
     });
   }, []);
@@ -71,7 +86,7 @@ export function BasespeakProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       messages: {
         ...prev.messages,
-        [avatarId]: messages,
+        [avatarId]: messages.map(normaliseMessage),
       },
     }));
   }, [updateStore]);
@@ -79,7 +94,7 @@ export function BasespeakProvider({ children }: { children: React.ReactNode }) {
   const addMessage = useCallback((avatarId: string, message: Message) => {
     updateStore((prev) => {
       const current = prev.messages[avatarId] ?? [];
-      const nextMessages = [...current, message];
+      const nextMessages = [...current, normaliseMessage(message)];
       return {
         ...prev,
         messages: {
@@ -95,7 +110,7 @@ export function BasespeakProvider({ children }: { children: React.ReactNode }) {
       updateStore((prev) => {
         const current = prev.messages[avatarId] ?? [];
         const nextMessages = current.map((message) =>
-          message.id === messageId ? { ...message, ...patch } : message,
+          message.id === messageId ? normaliseMessage({ ...message, ...patch }) : message,
         );
         return {
           ...prev,

@@ -1,9 +1,10 @@
 import { memo } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Message } from '~/types';
 
 interface MessageBubbleProps {
   message: Message;
+  onReplay?: () => void;
 }
 
 function statusLabel(status: Message['status']): string | null {
@@ -19,10 +20,11 @@ function statusLabel(status: Message['status']): string | null {
   }
 }
 
-function MessageBubbleComponent({ message }: MessageBubbleProps) {
+function MessageBubbleComponent({ message, onReplay }: MessageBubbleProps) {
   const isAssistant = message.role === 'assistant';
   const bubbleStyle = [styles.bubble, isAssistant ? styles.assistant : styles.user];
   const label = statusLabel(message.status);
+  const canReplay = Boolean(onReplay) && Boolean(message.videoUrl);
 
   return (
     <View style={[styles.container, isAssistant ? styles.containerAssistant : styles.containerUser]}>
@@ -34,6 +36,11 @@ function MessageBubbleComponent({ message }: MessageBubbleProps) {
             <Text style={styles.statusText}>{label}</Text>
           </View>
         )}
+        {isAssistant && canReplay ? (
+          <TouchableOpacity style={styles.replayButton} onPress={onReplay}>
+            <Text style={styles.replayText}>Replay video</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
@@ -80,6 +87,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
     marginLeft: 6,
+  },
+  replayButton: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#1e293b',
+  },
+  replayText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

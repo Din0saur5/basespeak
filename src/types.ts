@@ -74,6 +74,7 @@ export interface Message {
   text: string;
   status: MessageStatus;
   jobId?: string | null;
+  videoUrls?: string[];
   videoUrl?: string | null;
   videoPath?: string | null;
   durationMs?: number | null;

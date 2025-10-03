@@ -16,11 +16,17 @@ import {
 import { MessageBubble } from '~/components/MessageBubble';
 import { VideoPane } from '~/components/VideoPane';
 import { playBase64Audio } from '~/lib/audio';
-import { fetchMessages, pollJob, sendReply } from '~/lib/api';
+import { fetchMessages, sendReply } from '~/lib/api';
 import { useBasespeakStore } from '~/hooks/useBasespeakStore';
 import { useAuth } from '~/hooks/useAuth';
 import { generateId } from '~/lib/id';
 import { Message } from '~/types';
+
+type ActivePlayback = {
+  messageId: string;
+  urls: string[];
+  index: number;
+};
 
 export default function ChatScreen() {
   const { avatarId } = useLocalSearchParams<{ avatarId: string }>();
@@ -29,7 +35,7 @@ export default function ChatScreen() {
   const {
     store: { avatars, messages: messageMap, settings },
     hydrated,
-    actions: { addMessage, updateMessage, setMessages },
+    actions: { addMessage, setMessages },
   } = useBasespeakStore();
 
   const avatar = useMemo(() => avatars.find((item) => item.id === avatarId), [avatars, avatarId]);
@@ -38,99 +44,15 @@ export default function ChatScreen() {
   const [input, setInput] = useState<string>('');
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
   const [sending, setSending] = useState<boolean>(false);
+  const [activePlayback, setActivePlayback] = useState<ActivePlayback | null>(null);
 
   const listRef = useRef<FlatList<Message>>(null);
-  const jobTrackers = useRef<Map<string, () => void>>(new Map());
-
-  const trackJob = useCallback(
-    (jobId: string, messageId: string, currentAvatarId: string, userId?: string | null) => {
-      if (jobTrackers.current.has(jobId)) {
-        return;
-      }
-
-      let cancelled = false;
-      let timeout: ReturnType<typeof setTimeout> | null = null;
-
-      const cancel = () => {
-        cancelled = true;
-        if (timeout) {
-          clearTimeout(timeout);
-        }
-      };
-
-      const pollLoop = async (attempt = 0) => {
-        if (cancelled) {
-          return;
-        }
-        try {
-          const result = await pollJob(jobId, userId ?? undefined);
-          console.log('[Gooey] poll result', jobId, result.status, {
-            mp4Url: result.mp4Url,
-            messageId: result.messageId,
-          });
-          if (cancelled) {
-            return;
-          }
-
-          if (result.status === 'done' && result.mp4Url) {
-            updateMessage(currentAvatarId, messageId, {
-              status: 'done',
-              videoUrl: result.mp4Url,
-            });
-            jobTrackers.current.delete(jobId);
-            cancel();
-            console.log('[Gooey] job complete', jobId, 'url:', result.mp4Url);
-            return;
-          }
-
-          if (result.status === 'error') {
-            updateMessage(currentAvatarId, messageId, {
-              status: 'error',
-            });
-            jobTrackers.current.delete(jobId);
-            cancel();
-            console.warn('[Gooey] job error', jobId, result.error);
-            return;
-          }
-        } catch (error) {
-          console.warn('Job polling failed', error);
-          if (attempt >= 10) {
-            updateMessage(currentAvatarId, messageId, {
-              status: 'error',
-            });
-            jobTrackers.current.delete(jobId);
-            cancel();
-            console.warn('[Gooey] job failed after retries', jobId);
-            return;
-          }
-        }
-
-        timeout = setTimeout(() => pollLoop(attempt + 1), 2000);
-      };
-
-      jobTrackers.current.set(jobId, cancel);
-      pollLoop();
-    },
-    [updateMessage],
-  );
 
   useEffect(() => {
     if (avatar) {
       navigation.setOptions({ title: avatar.name });
     }
   }, [avatar, navigation]);
-
-  useEffect(() => {
-    if (!avatarId) {
-      return;
-    }
-    console.log('[Chat] avatar snapshot', {
-      avatarId,
-      baseKind: avatar?.baseKind,
-      baseUrl: avatar?.baseUrl,
-      posterUrl: avatar?.posterUrl,
-    });
-  }, [avatarId, avatar?.baseKind, avatar?.baseUrl, avatar?.posterUrl]);
 
   useEffect(() => {
     if (!avatarId || !hydrated || !user?.id) {
@@ -158,19 +80,9 @@ export default function ChatScreen() {
 
     return () => {
       isMounted = false;
+      setActivePlayback(null);
     };
   }, [avatarId, hydrated, setMessages, user?.id]);
-
-  useEffect(() => {
-    if (!avatarId) {
-      return;
-    }
-    messages.forEach((message) => {
-      if (message.jobId && message.status === 'rendering' && !jobTrackers.current.has(message.jobId)) {
-        trackJob(message.jobId, message.id, avatarId, user?.id);
-      }
-    });
-  }, [avatarId, messages, trackJob, user?.id]);
 
   useEffect(() => {
     if (messages.length) {
@@ -181,36 +93,38 @@ export default function ChatScreen() {
     }
   }, [messages]);
 
-  useEffect(() => {
-    return () => {
-      jobTrackers.current.forEach((cancel) => cancel());
-      jobTrackers.current.clear();
-    };
-  }, []);
-
-  const latestVideo = useMemo(() => {
-    const reversed = [...messages].reverse();
-    const withVideo = reversed.find((message) => message.videoUrl);
-    return withVideo?.videoUrl ?? null;
-  }, [messages]);
-
-  useEffect(() => {
-    console.log('[Chat] latest video updated', latestVideo);
-  }, [latestVideo]);
-
   const fallbackVideo =
     avatar?.baseKind === 'video'
       ? avatar?.idleVideoUrl ?? avatar?.baseUrl ?? null
       : null;
   const fallbackPoster = avatar?.baseKind === 'image' ? avatar?.baseUrl : avatar?.posterUrl ?? null;
 
-  useEffect(() => {
-    console.log('[Chat] fallback assets', { fallbackVideo, fallbackPoster });
-  }, [fallbackPoster, fallbackVideo]);
+  const hasActiveVideo = Boolean(activePlayback?.urls?.length);
+  const currentVideoUrl = hasActiveVideo ? activePlayback!.urls[activePlayback!.index] : fallbackVideo;
+  const playKey = hasActiveVideo
+    ? `${activePlayback!.messageId}-${activePlayback!.index}`
+    : `idle-${fallbackVideo ?? 'none'}`;
 
-  const isFallbackVideo = Boolean(fallbackVideo) && !latestVideo;
-  const videoToDisplay = latestVideo ?? fallbackVideo;
-  const posterToDisplay = latestVideo ? undefined : fallbackPoster;
+  const handleVideoEnd = useCallback(() => {
+    setActivePlayback((current) => {
+      if (!current) {
+        return null;
+      }
+      const nextIndex = current.index + 1;
+      if (nextIndex < current.urls.length) {
+        return { ...current, index: nextIndex };
+      }
+      return null;
+    });
+  }, []);
+
+  const handleReplay = useCallback((message: Message) => {
+    const urls = message.videoUrls ?? (message.videoUrl ? [message.videoUrl] : []);
+    if (!urls.length) {
+      return;
+    }
+    setActivePlayback({ messageId: message.id, urls, index: 0 });
+  }, []);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -226,11 +140,13 @@ export default function ChatScreen() {
       role: 'user',
       text,
       status: 'done',
+      videoUrls: [],
       createdAt: now,
     };
 
     addMessage(avatarId, userMessage);
     setInput('');
+    setActivePlayback(null);
 
     try {
       setSending(true);
@@ -241,25 +157,28 @@ export default function ChatScreen() {
         settings,
       }, user.id);
 
+      const videoUrls = reply.videoUrls ?? [];
+      const status = videoUrls.length ? 'done' : 'audio_ready';
       const assistantMessage: Message = {
         id: reply.messageId ?? generateId('assistant'),
         avatarId,
         userId: user.id,
         role: 'assistant',
         text: reply.replyText,
-        status: reply.jobId ? 'rendering' : 'audio_ready',
-        jobId: reply.jobId ?? undefined,
+        status,
+        videoUrls,
+        videoUrl: videoUrls[0] ?? null,
         createdAt: new Date().toISOString(),
       };
 
       addMessage(avatarId, assistantMessage);
 
-      playBase64Audio(reply.audioB64, reply.mime).catch((error) => {
-        console.warn('Failed to play audio', error);
-      });
-
-      if (reply.jobId) {
-        trackJob(reply.jobId, assistantMessage.id, avatarId, user.id);
+      if (videoUrls.length) {
+        setActivePlayback({ messageId: assistantMessage.id, urls: videoUrls, index: 0 });
+      } else {
+        playBase64Audio(reply.audioB64, reply.mime).catch((error) => {
+          console.warn('Failed to play fallback audio', error);
+        });
       }
     } catch (error) {
       console.warn('Failed to send reply', error);
@@ -267,7 +186,7 @@ export default function ChatScreen() {
     } finally {
       setSending(false);
     }
-  }, [addMessage, avatar, avatarId, input, settings, trackJob, user?.id]);
+  }, [addMessage, avatar, avatarId, input, settings, user?.id]);
 
   if (!avatar) {
     return (
@@ -286,12 +205,14 @@ export default function ChatScreen() {
       >
         <View style={styles.videoContainer}>
           <VideoPane
-            videoUrl={videoToDisplay}
-            posterUrl={posterToDisplay}
-            autoPlay={isFallbackVideo}
-            loop={isFallbackVideo}
-            muted={isFallbackVideo}
-            showControls={!isFallbackVideo}
+            videoUrl={currentVideoUrl ?? undefined}
+            posterUrl={hasActiveVideo ? undefined : fallbackPoster}
+            autoPlay={Boolean(currentVideoUrl)}
+            loop={!hasActiveVideo}
+            muted={!hasActiveVideo}
+            showControls={false}
+            onEnd={hasActiveVideo ? handleVideoEnd : undefined}
+            playKey={playKey}
             fallbackLabel="Waiting for first lipsync video"
           />
         </View>
@@ -305,7 +226,12 @@ export default function ChatScreen() {
             ref={listRef}
             data={messages}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <MessageBubble message={item} />}
+            renderItem={({ item }) => (
+              <MessageBubble
+                message={item}
+                onReplay={item.videoUrls && item.videoUrls.length > 0 ? () => handleReplay(item) : undefined}
+              />
+            )}
             contentContainerStyle={styles.messagesContent}
           />
         )}
