@@ -6,9 +6,10 @@ import { Avatar } from '~/types';
 interface AvatarCardProps {
   avatar: Avatar;
   onPress?: () => void;
+  onEdit?: () => void;
 }
 
-function AvatarCardComponent({ avatar, onPress }: AvatarCardProps) {
+function AvatarCardComponent({ avatar, onPress, onEdit }: AvatarCardProps) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.previewWrapper}>
@@ -20,12 +21,24 @@ function AvatarCardComponent({ avatar, onPress }: AvatarCardProps) {
             loop
             muted
             showControls={false}
-            aspectRatio={3 / 4}
+            aspectRatio={1/1}
             fallbackLabel="No preview"
           />
         ) : (
           <Image source={{ uri: avatar.baseUrl }} style={styles.preview} resizeMode="cover" />
         )}
+        {onEdit ? (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={(event) => {
+              event.stopPropagation();
+              onEdit();
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
       <Text style={styles.name} numberOfLines={1}>
         {avatar.name}
@@ -56,10 +69,25 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#e9eef5',
     marginBottom: 8,
+    position: 'relative',
   },
   preview: {
     width: '100%',
     height: '100%',
+  },
+  editButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  editText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   name: {
     fontSize: 16,

@@ -88,6 +88,7 @@ export default function CharactersScreen() {
           <AvatarCard
             avatar={item}
             onPress={() => router.push({ pathname: '/(tabs)/characters/[avatarId]', params: { avatarId: item.id } })}
+            onEdit={() => router.push({ pathname: '/(modals)/edit-avatar', params: { avatarId: item.id } })}
           />
         )}
         contentContainerStyle={styles.gridContent}

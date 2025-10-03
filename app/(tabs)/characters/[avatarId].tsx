@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -31,6 +31,7 @@ type ActivePlayback = {
 export default function ChatScreen() {
   const { avatarId } = useLocalSearchParams<{ avatarId: string }>();
   const navigation = useNavigation();
+  const router = useRouter();
   const { user } = useAuth();
   const {
     store: { avatars, messages: messageMap, settings },
@@ -50,9 +51,20 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (avatar) {
-      navigation.setOptions({ title: avatar.name });
+      navigation.setOptions({
+        title: avatar.name,
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/(modals)/edit-avatar', params: { avatarId: avatar.id } })}
+            style={styles.headerButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.headerAction}>Edit</Text>
+          </TouchableOpacity>
+        ),
+      });
     }
-  }, [avatar, navigation]);
+  }, [avatar, navigation, router]);
 
   useEffect(() => {
     if (!avatarId || !hydrated || !user?.id) {
@@ -226,12 +238,11 @@ export default function ChatScreen() {
             ref={listRef}
             data={messages}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <MessageBubble
-                message={item}
-                onReplay={item.videoUrls && item.videoUrls.length > 0 ? () => handleReplay(item) : undefined}
-              />
-            )}
+            renderItem={({ item }) => {
+              const urls = item.videoUrls ?? (item.videoUrl ? [item.videoUrl] : []);
+              const replayHandler = urls.length ? () => handleReplay(item) : undefined;
+              return <MessageBubble message={item} onReplay={replayHandler} />;
+            }}
             contentContainerStyle={styles.messagesContent}
           />
         )}
@@ -270,6 +281,15 @@ const styles = StyleSheet.create({
   videoContainer: {
     padding: 16,
     paddingBottom: 0,
+  },
+  headerButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  headerAction: {
+    color: '#2563eb',
+    fontSize: 15,
+    fontWeight: '600',
   },
   centered: {
     flex: 1,

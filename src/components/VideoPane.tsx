@@ -49,7 +49,7 @@ export function VideoPane({
         style={videoStyle}
         source={{ uri: videoUrl }}
         useNativeControls={showControls}
-        resizeMode={showControls ? ResizeMode.CONTAIN : ResizeMode.COVER}
+        resizeMode={showControls ? ResizeMode.CONTAIN : ResizeMode.CONTAIN}
         shouldPlay={autoPlay}
         isLooping={loop}
         isMuted={muted}
@@ -59,7 +59,7 @@ export function VideoPane({
   }
 
   if (posterUrl) {
-    return <Image key={key} source={{ uri: posterUrl }} style={videoStyle} resizeMode="cover" />;
+    return <Image key={key} source={{ uri: posterUrl }} style={videoStyle} resizeMode="contain" />;
   }
 
   return (

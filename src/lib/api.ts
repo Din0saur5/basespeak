@@ -117,6 +117,22 @@ interface ReplyPayload {
   settings: AppSettings;
 }
 
+interface UpdateAvatarFilePayload {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+}
+
+interface UpdateAvatarPayload {
+  name: string;
+  voicePreset: VoicePreset;
+  persona: string;
+  lipsyncQuality: LipsyncQuality;
+  base?: UpdateAvatarFilePayload;
+  idle?: UpdateAvatarFilePayload;
+  talking?: UpdateAvatarFilePayload;
+}
+
 export async function sendReply(payload: ReplyPayload, userId: string): Promise<ReplyResponse> {
   if (!userId) {
     throw new Error('User not authenticated');
@@ -155,4 +171,44 @@ export async function fetchMessages(userId: string, avatarId: string): Promise<M
   }
   const result = await request<{ messages: Message[] }>(`/avatars/${avatarId}/messages`, undefined, { userId });
   return result.messages;
+}
+
+export async function updateAvatar(
+  avatarId: string,
+  payload: UpdateAvatarPayload,
+  userId: string,
+): Promise<{ avatar: Avatar }> {
+  if (!userId) {
+    throw new Error('User not authenticated');
+  }
+
+  const formData = new FormData();
+  formData.append('name', payload.name);
+  formData.append('voicePreset', payload.voicePreset);
+  formData.append('lipsyncQuality', payload.lipsyncQuality);
+  formData.append('persona', payload.persona ?? '');
+
+  const appendFile = (field: string, asset?: UpdateAvatarFilePayload) => {
+    if (!asset) {
+      return;
+    }
+    formData.append(field, {
+      uri: asset.uri,
+      name: asset.fileName,
+      type: asset.mimeType,
+    } as unknown as Blob);
+  };
+
+  appendFile('file', payload.base);
+  appendFile('idleFile', payload.idle);
+  appendFile('talkingFile', payload.talking);
+
+  return request<{ avatar: Avatar }>(
+    `/avatars/${avatarId}`,
+    {
+      method: 'PATCH',
+      body: formData,
+    },
+    { userId },
+  );
 }

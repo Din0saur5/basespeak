@@ -32,7 +32,7 @@ export async function submitGooeyJob(options: GooeySubmitOptions): Promise<Gooey
       input_audio: options.audioUrl,
       selected_model: 'Wav2Lip',
       face_padding_top: 0,
-      face_padding_bottom: 18,
+      face_padding_bottom: options.quality === 'fast' ? 6 : 18,
       face_padding_left: 0,
       face_padding_right: 0,
     };
