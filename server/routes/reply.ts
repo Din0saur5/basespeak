@@ -12,7 +12,7 @@ import { ENV } from '../env';
 import { getPublicUrl, uploadVideoAsset } from '../services/storage';
 
 const MAX_ASSISTANT_CHARS = 280;
-const WORDS_PER_SEGMENT = 20;
+const WORDS_PER_SEGMENT = 18;
 const GOOEY_MAX_POLLS = 30;
 const GOOEY_POLL_INTERVAL_MS = 2000;
 
