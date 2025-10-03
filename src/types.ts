@@ -48,6 +48,10 @@ export interface Avatar {
   baseKind: 'image' | 'video';
   baseMime: string;
   posterUrl?: string | null;
+  idleVideoUrl?: string | null;
+  idleVideoPath?: string | null;
+  talkingVideoUrl?: string | null;
+  talkingVideoPath?: string | null;
   voicePreset: VoicePreset;
   voiceProvider: string;
   voiceProviderId: string;

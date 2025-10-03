@@ -75,9 +75,13 @@ export async function replyHandler(req: Request, res: Response) {
 
     if (!shouldSkipLipsync) {
       const baseUrl = avatar.baseUrl || getPublicUrl(ENV.SUPABASE_BASE_BUCKET, avatarRow.base_path) || '';
-      if (baseUrl) {
+      const talkingUrl =
+        avatarRow.base_kind === 'video'
+          ? avatar.talkingVideoUrl || avatar.baseUrl || baseUrl
+          : baseUrl;
+      if (talkingUrl) {
         const submission = await submitGooeyJob({
-          baseUrl,
+          baseUrl: talkingUrl,
           baseKind: avatarRow.base_kind,
           audioBase64: speech.audioBase64,
           audioMime: speech.mime,

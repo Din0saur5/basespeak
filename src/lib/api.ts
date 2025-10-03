@@ -14,6 +14,16 @@ interface UploadBasePayload {
   voicePreset: VoicePreset;
   persona?: string;
   lipsyncQuality: LipsyncQuality;
+  idle?: {
+    uri: string;
+    fileName: string;
+    mimeType: string;
+  } | null;
+  talking?: {
+    uri: string;
+    fileName: string;
+    mimeType: string;
+  } | null;
 }
 
 export interface UploadBaseResponse {
@@ -80,6 +90,22 @@ export async function uploadBase(payload: UploadBasePayload, userId: string): Pr
     name: payload.fileName,
     type: payload.mimeType,
   } as unknown as Blob);
+
+  if (payload.idle) {
+    formData.append('idleFile', {
+      uri: payload.idle.uri,
+      name: payload.idle.fileName,
+      type: payload.idle.mimeType,
+    } as unknown as Blob);
+  }
+
+  if (payload.talking) {
+    formData.append('talkingFile', {
+      uri: payload.talking.uri,
+      name: payload.talking.fileName,
+      type: payload.talking.mimeType,
+    } as unknown as Blob);
+  }
 
   return request<UploadBaseResponse>(
     '/upload-base',

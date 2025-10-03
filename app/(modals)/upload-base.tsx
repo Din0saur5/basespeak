@@ -37,6 +37,8 @@ export default function UploadBaseModal() {
   } = useBasespeakStore();
 
   const [asset, setAsset] = useState<PickedAsset | null>(null);
+  const [idleAsset, setIdleAsset] = useState<PickedAsset | null>(null);
+  const [talkingAsset, setTalkingAsset] = useState<PickedAsset | null>(null);
   const [name, setName] = useState<string>('');
   const [voicePreset, setVoicePreset] = useState<VoicePreset>(DEFAULT_VOICE);
   const [persona, setPersona] = useState<string>('');
@@ -70,6 +72,41 @@ export default function UploadBaseModal() {
       fileName,
       type,
     });
+
+    if (type !== 'video') {
+      setIdleAsset(null);
+      setTalkingAsset(null);
+    }
+  };
+
+  const handlePickVideoVariant = async (
+    setter: (asset: PickedAsset | null) => void,
+    label: string,
+  ) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsMultipleSelection: false,
+      quality: 1,
+      videoMaxDuration: 10,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
+
+    const picked = result.assets[0];
+    if (!picked.uri || !picked.mimeType) {
+      Alert.alert('Could not read file info', `Please try again with a different ${label} clip.`);
+      return;
+    }
+
+    const fileName = picked.fileName ?? picked.uri.split('/').pop() ?? `${label}-${Date.now()}.mp4`;
+    setter({
+      uri: picked.uri,
+      mimeType: picked.mimeType,
+      fileName,
+      type: 'video',
+    });
   };
 
   const handleSubmit = async () => {
@@ -90,6 +127,8 @@ export default function UploadBaseModal() {
 
     try {
       setSubmitting(true);
+      const payloadIdle = asset.type === 'video' ? idleAsset ?? asset : null;
+      const payloadTalking = asset.type === 'video' ? talkingAsset ?? asset : null;
       const response = await uploadBase({
         uri: asset.uri,
         fileName: asset.fileName,
@@ -98,6 +137,20 @@ export default function UploadBaseModal() {
         voicePreset,
         persona: persona.trim() || undefined,
         lipsyncQuality: quality,
+        idle: payloadIdle
+          ? {
+              uri: payloadIdle.uri,
+              fileName: payloadIdle.fileName,
+              mimeType: payloadIdle.mimeType,
+            }
+          : null,
+        talking: payloadTalking
+          ? {
+              uri: payloadTalking.uri,
+              fileName: payloadTalking.fileName,
+              mimeType: payloadTalking.mimeType,
+            }
+          : null,
       }, user.id);
       addAvatar(response.avatar);
       router.back();
@@ -134,6 +187,78 @@ export default function UploadBaseModal() {
               <Text style={styles.fileMeta}>{asset.mimeType}</Text>
             </View>
           )}
+
+          {asset?.type === 'video' ? (
+            <View style={styles.videoVariants}>
+              <Text style={styles.variantHeading}>Optional video variants</Text>
+              <Text style={styles.variantHint}>
+                Idle plays in the picker and while waiting on lipsync. Talking is sent to Gooey. If you skip one, we
+                reuse the base video.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.variantButton}
+                onPress={() => handlePickVideoVariant(setIdleAsset, 'idle')}
+                disabled={submitting}
+              >
+                <Text style={styles.variantButtonText}>{idleAsset ? 'Change Idle Clip' : 'Pick Idle Clip'}</Text>
+              </TouchableOpacity>
+              {idleAsset && (
+                <View style={styles.variantPreviewBlock}>
+                  <VideoPane
+                    videoUrl={idleAsset.uri}
+                    autoPlay
+                    loop
+                    muted
+                    showControls={false}
+                    fallbackLabel="Idle clip preview"
+                  />
+                  <View style={styles.fileDetailsCompact}>
+                    <Text style={styles.fileName}>{idleAsset.fileName}</Text>
+                    <Text style={styles.fileMeta}>{idleAsset.mimeType}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={() => setIdleAsset(null)}
+                    disabled={submitting}
+                  >
+                    <Text style={styles.clearText}>Remove idle clip</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.variantButton}
+                onPress={() => handlePickVideoVariant(setTalkingAsset, 'talking')}
+                disabled={submitting}
+              >
+                <Text style={styles.variantButtonText}>{talkingAsset ? 'Change Talking Clip' : 'Pick Talking Clip'}</Text>
+              </TouchableOpacity>
+              {talkingAsset && (
+                <View style={styles.variantPreviewBlock}>
+                  <VideoPane
+                    videoUrl={talkingAsset.uri}
+                    autoPlay
+                    loop
+                    muted
+                    showControls={false}
+                    fallbackLabel="Talking clip preview"
+                  />
+                  <View style={styles.fileDetailsCompact}>
+                    <Text style={styles.fileName}>{talkingAsset.fileName}</Text>
+                    <Text style={styles.fileMeta}>{talkingAsset.mimeType}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={() => setTalkingAsset(null)}
+                    disabled={submitting}
+                  >
+                    <Text style={styles.clearText}>Remove talking clip</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ) : null}
 
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Name</Text>
@@ -257,12 +382,61 @@ const styles = StyleSheet.create({
   fileDetails: {
     marginBottom: 20,
   },
+  fileDetailsCompact: {
+    marginTop: 12,
+    marginBottom: 8,
+  },
   fileName: {
     fontWeight: '600',
     color: '#1f2937',
   },
   fileMeta: {
     color: '#6b7280',
+  },
+  videoVariants: {
+    marginBottom: 24,
+    backgroundColor: '#f1f5f9',
+    padding: 16,
+    borderRadius: 12,
+  },
+  variantHeading: {
+    fontWeight: '700',
+    fontSize: 16,
+    color: '#0f172a',
+    marginBottom: 6,
+  },
+  variantHint: {
+    color: '#475569',
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  variantButton: {
+    backgroundColor: '#1e293b',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  variantButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  variantPreviewBlock: {
+    marginBottom: 16,
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  clearButton: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  clearText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '600',
   },
   fieldGroup: {
     marginBottom: 20,

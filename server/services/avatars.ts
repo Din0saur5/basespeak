@@ -30,6 +30,12 @@ export function mapAvatarRow(row: AvatarRow) {
     baseMime: row.base_mime,
     baseUrl: getPublicUrl(ENV.SUPABASE_BASE_BUCKET, row.base_path) ?? '',
     posterUrl: getPublicUrl(ENV.SUPABASE_BASE_BUCKET, row.poster_path ?? undefined),
+    idleVideoPath: row.idle_video_path ?? null,
+    idleVideoUrl:
+      row.idle_video_url ?? getPublicUrl(ENV.SUPABASE_BASE_BUCKET, row.idle_video_path ?? undefined) ?? null,
+    talkingVideoPath: row.talking_video_path ?? null,
+    talkingVideoUrl:
+      row.talking_video_url ?? getPublicUrl(ENV.SUPABASE_BASE_BUCKET, row.talking_video_path ?? undefined) ?? null,
     voicePreset: row.voice_preset,
     voiceProvider: row.voice_provider,
     voiceProviderId: row.voice_provider_id,

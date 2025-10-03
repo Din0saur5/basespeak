@@ -1,3 +1,4 @@
+import type { Express } from 'express';
 import { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { uploadBaseAsset } from '../services/storage';
@@ -30,7 +31,9 @@ export async function uploadBaseHandler(req: Request, res: Response) {
       return res.status(401).json({ error: 'Missing user context' });
     }
 
-    const file = req.file;
+    const files = (req.files as Express.Multer.File[]) ?? [];
+    const pickFile = (field: string) => files.find((item) => item.fieldname === field);
+    const file = pickFile('file');
     if (!file) {
       return res.status(400).json({ error: 'Missing file upload' });
     }
@@ -54,12 +57,33 @@ export async function uploadBaseHandler(req: Request, res: Response) {
 
     const uploadResult = await uploadBaseAsset(path, file.buffer, mimeType);
 
+    let idleUpload: { path: string; publicUrl: string | null } | undefined;
+    let talkingUpload: { path: string; publicUrl: string | null } | undefined;
+
+    if (baseKind === 'video') {
+      const idleSource = pickFile('idleFile') ?? file;
+      const idleMime = idleSource.mimetype ?? mimeType;
+      const idleExt = getExtensionFromMime(idleMime);
+      const idlePath = `${userId}/${randomUUID()}-idle.${idleExt}`;
+      idleUpload = await uploadBaseAsset(idlePath, idleSource.buffer, idleMime);
+
+      const talkingSource = pickFile('talkingFile') ?? file;
+      const talkingMime = talkingSource.mimetype ?? mimeType;
+      const talkingExt = getExtensionFromMime(talkingMime);
+      const talkingPath = `${userId}/${randomUUID()}-talking.${talkingExt}`;
+      talkingUpload = await uploadBaseAsset(talkingPath, talkingSource.buffer, talkingMime);
+    }
+
     const avatarRow = await insertAvatar({
       user_id: userId,
       name: payload.name,
       base_path: uploadResult.path,
       base_kind: baseKind,
       base_mime: mimeType,
+      idle_video_path: idleUpload?.path ?? null,
+      idle_video_url: idleUpload?.publicUrl ?? null,
+      talking_video_path: talkingUpload?.path ?? null,
+      talking_video_url: talkingUpload?.publicUrl ?? null,
       voice_preset: payload.voicePreset,
       voice_provider: resolveVoiceProvider(),
       voice_provider_id: resolveVoiceProviderId(payload.voicePreset),
@@ -69,6 +93,12 @@ export async function uploadBaseHandler(req: Request, res: Response) {
 
     const avatar = mapAvatarRow(avatarRow);
     avatar.baseUrl = uploadResult.publicUrl ?? avatar.baseUrl;
+    if (idleUpload?.publicUrl) {
+      avatar.idleVideoUrl = idleUpload.publicUrl;
+    }
+    if (talkingUpload?.publicUrl) {
+      avatar.talkingVideoUrl = talkingUpload.publicUrl;
+    }
 
     return res.json({ avatar });
   } catch (error) {

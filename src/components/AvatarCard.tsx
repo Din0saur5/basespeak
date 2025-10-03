@@ -14,12 +14,13 @@ function AvatarCardComponent({ avatar, onPress }: AvatarCardProps) {
       <View style={styles.previewWrapper}>
         {avatar.baseKind === 'video' ? (
           <VideoPane
-            videoUrl={avatar.baseUrl}
+            videoUrl={avatar.idleVideoUrl ?? avatar.baseUrl}
             posterUrl={avatar.posterUrl ?? undefined}
             autoPlay
             loop
             muted
             showControls={false}
+            aspectRatio={3 / 4}
             fallbackLabel="No preview"
           />
         ) : (

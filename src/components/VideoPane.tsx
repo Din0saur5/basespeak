@@ -9,6 +9,7 @@ interface VideoPaneProps {
   loop?: boolean;
   muted?: boolean;
   showControls?: boolean;
+  aspectRatio?: number;
 }
 
 export function VideoPane({
@@ -19,11 +20,13 @@ export function VideoPane({
   loop = false,
   muted = false,
   showControls = true,
+  aspectRatio = 16 / 9,
 }: VideoPaneProps) {
+  const videoStyle = [styles.video, { aspectRatio }];
   if (videoUrl) {
     return (
       <Video
-        style={styles.video}
+        style={videoStyle}
         source={{ uri: videoUrl }}
         useNativeControls={showControls}
         resizeMode={showControls ? ResizeMode.CONTAIN : ResizeMode.COVER}
@@ -35,11 +38,11 @@ export function VideoPane({
   }
 
   if (posterUrl) {
-    return <Image source={{ uri: posterUrl }} style={styles.video} resizeMode="cover" />;
+    return <Image source={{ uri: posterUrl }} style={videoStyle} resizeMode="cover" />;
   }
 
   return (
-    <View style={[styles.video, styles.placeholder]}>
+    <View style={[videoStyle, styles.placeholder]}>
       <Text style={styles.placeholderText}>{fallbackLabel}</Text>
     </View>
   );
@@ -48,7 +51,6 @@ export function VideoPane({
 const styles = StyleSheet.create({
   video: {
     width: '100%',
-    aspectRatio: 3 / 4,
     borderRadius: 12,
     backgroundColor: '#0f172a',
     overflow: 'hidden',

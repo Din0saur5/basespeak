@@ -13,7 +13,7 @@ const app = express();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 40 * 1024 * 1024,
+    fileSize: 80 * 1024 * 1024,
   },
 });
 
@@ -36,7 +36,7 @@ app.get('/health', (_req, res) => {
 app.get('/status', vendorStatusHandler);
 app.get('/avatars', avatarsHandler);
 app.get('/avatars/:avatarId/messages', avatarMessagesHandler);
-app.post('/upload-base', upload.single('file'), uploadBaseHandler);
+app.post('/upload-base', upload.any(), uploadBaseHandler);
 app.post('/reply', replyHandler);
 app.get('/job/:id', jobStatusHandler);
 

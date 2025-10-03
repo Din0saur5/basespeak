@@ -198,7 +198,10 @@ export default function ChatScreen() {
     console.log('[Chat] latest video updated', latestVideo);
   }, [latestVideo]);
 
-  const fallbackVideo = avatar?.baseKind === 'video' ? avatar?.baseUrl ?? null : null;
+  const fallbackVideo =
+    avatar?.baseKind === 'video'
+      ? avatar?.idleVideoUrl ?? avatar?.baseUrl ?? null
+      : null;
   const fallbackPoster = avatar?.baseKind === 'image' ? avatar?.baseUrl : avatar?.posterUrl ?? null;
 
   useEffect(() => {

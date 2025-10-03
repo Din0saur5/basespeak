@@ -8,6 +8,10 @@ export interface AvatarRow {
   base_kind: 'image' | 'video';
   base_mime: string;
   poster_path?: string | null;
+  idle_video_path?: string | null;
+  idle_video_url?: string | null;
+  talking_video_path?: string | null;
+  talking_video_url?: string | null;
   voice_provider: string;
   voice_preset: string;
   voice_provider_id: string;
